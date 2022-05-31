@@ -84,3 +84,16 @@ http://20.31.24.74/cog/tiles/6/33/30?url=https://undpngddlsgeohubdev01.blob.core
 ```zsh
 $kubectl delete -f manifest.yml --namespace titiler-dev
 ```
+
+## Check log
+
+```zsh
+$kubectl get pods
+NAME                      READY   STATUS    RESTARTS   AGE
+titiler-7899fd795-hcnzh   1/1     Running   0          27m
+titiler-7899fd795-kqstv   1/1     Running   0          27m
+titiler-7899fd795-xnlbv   1/1     Running   0          27m
+
+$kubectl logs titiler-7899fd795-hcnzh
+$kubectl describe pods titiler-7899fd795-hcnzh
+```
