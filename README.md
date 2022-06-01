@@ -59,7 +59,7 @@ $az role assignment create \
     --scope /subscriptions/1c766f37-8740-4764-932c-bf96cbb29a39/resourceGroups/undpdpbppssdganalyticsgeo
 ```
 
-## Deploy Martin
+## Deploy Titiler
 
 ```zsh
 $kubectl apply -f manifest.yaml --namespace titiler-dev
