@@ -266,11 +266,11 @@ env: []
 #       name: secret-name
 #       key: secret-key
 
-envFrom: []
-# - configMapRef:
-#     name: config-map-name
-# - secretRef:
-#     name: secret-name
+envFrom:
+- configMapRef:
+    name: azuredns-config
+- secretRef:
+    name: azuredns-config
 
 # Configure ports
 ports:
@@ -315,7 +315,7 @@ ports:
     # Port Redirections
     # Added in 2.2, you can make permanent redirects via entrypoints.
     # https://docs.traefik.io/routing/entrypoints/#redirection
-    # redirectTo: websecure
+    redirectTo: websecure
   websecure:
     port: 8443
     # hostPort: 8443
@@ -331,15 +331,15 @@ ports:
     # Set TLS at the entrypoint
     # https://doc.traefik.io/traefik/routing/entrypoints/#tls
     tls:
-      enabled: false
+      enabled: true
       # this is the name of a TLSOption definition
       options: ""
-      certResolver: ""
-      domains: []
-      # - main: example.com
-      #   sans:
-      #     - foo.example.com
-      #     - bar.example.com
+      certResolver: le
+      domains:
+      - main: titiler.water-gis.com
+        # sans:
+        #   - foo.example.com
+        #   - bar.example.com
   metrics:
     port: 9100
     # hostPort: 9100
@@ -425,6 +425,11 @@ autoscaling:
 # After the pvc has been mounted, add the configs into traefik by using the `additionalArguments` list below, eg:
 # additionalArguments:
 # - "--certificatesresolvers.le.acme.storage=/data/acme.json"
+additionalArguments:
+- "--certificatesResolvers.le.acme.dnsChallenge.provider=azure"
+- "--certificatesresolvers.le.acme.email=jin.igarashi@undp.org"
+- "--certificatesresolvers.le.acme.storage=/data/acme.json"
+- "--certificatesresolvers.le.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
 # It will persist TLS certificates.
 persistence:
   enabled: false
