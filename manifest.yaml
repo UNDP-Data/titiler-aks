@@ -36,12 +36,7 @@ metadata:
   name: titiler
   labels:
     app: titiler
-  annotations:
-    # service.beta.kubernetes.io/azure-load-balancer-resource-group: undpdpbppssdganalyticsgeo
-    # service.beta.kubernetes.io/azure-dns-label-name: titiler
 spec:
-  # loadBalancerIP: 13.81.173.247
-  type: LoadBalancer
   ports:
     - name: web
       port: 80
