@@ -1,0 +1,16 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: titiler-ingress
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host(`titiler.water-gis.com`)
+      kind: Rule
+      services:
+        - name: titiler
+          port: 80
+

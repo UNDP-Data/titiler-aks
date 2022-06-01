@@ -62,27 +62,48 @@ $az role assignment create \
 ## Deploy Martin
 
 ```zsh
-$kubectl apply -f manifest.yml --namespace titiler-dev
+$kubectl apply -f manifest.yaml --namespace titiler-dev
 ```
 
-Check public IP of titiler service
+## setup traefik
 
 ```zsh
-$kubectl get svc
-NAME      TYPE           CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE
-titiler   LoadBalancer   10.0.128.54   20.31.24.74   80:30758/TCP   29s
-```
+$kubectl create ns traefik
 
-note. If you changed anything for titiler service, public IP will be changed.
+$kubectl apply -f azuredns-config.yaml
+$kubectl create secret generic azuredns-config --from-env-file ./credentials.env -n traefik
+
+$helm repo add traefik https://helm.traefik.io/traefik
+$helm inspect values traefik/traefik > traefik-values.yaml
+# update loadBalancerIP in traefik-values.yaml
+$helm install traefik-titiler traefik/traefik -f traefik-values.yaml -n traefik
+# if update existing traefic
+$helm upgrade traefik-titiler traefik/traefik -f traefik-values.yaml 
+
+$kubectl get svc -n traefik
+NAME              TYPE           CLUSTER-IP   EXTERNAL-IP     PORT(S)                      AGE
+traefik-titiler   LoadBalancer   10.0.44.36   13.81.173.247   80:31833/TCP,443:32683/TCP   16s
+
+# try to access traefik dashboards
+$kubectl get pods -n traefik
+NAME                               READY   STATUS    RESTARTS   AGE
+traefik-titiler-7c586945c8-t87cb   1/1     Running   0          26s
+$kubectl port-forward traefik-titiler-7c586945c8-t87cb 9000:9000 -n traefik
+# access http://localhost:9000/dashboard/ 
+
+$kubectl apply -f ingress.yaml -n titiler-dev
+```
 
 - Test
 
-http://20.31.24.74/cog/tiles/6/33/30?url=https://undpngddlsgeohubdev01.blob.core.windows.net/test/Nigeria_set_lightscore_sy_2020_riocog.tif?c3Y9MjAyMS0wNi0wOCZzZT0yMDIyLTA2LTAxVDExJTNBNTglM0ExN1omc3I9YiZzcD1yJnNpZz1hSlJ4eFFOTzhpaHUzWTdXNDc1MnY2UTdEN3R3V0Y2NUglMkI5ZGRBRW83ZTQlM0Q=
+http://titiler.water-gis.com/cog/tiles/6/33/30?url=https://undpngddlsgeohubdev01.blob.core.windows.net/test/Nigeria_set_lightscore_sy_2020_riocog.tif?c3Y9MjAyMS0wNi0wOCZzZT0yMDIyLTA2LTAxVDExJTNBNTglM0ExN1omc3I9YiZzcD1yJnNpZz1hSlJ4eFFOTzhpaHUzWTdXNDc1MnY2UTdEN3R3V0Y2NUglMkI5ZGRBRW83ZTQlM0Q=
 
 ## Delete environment
 
 ```zsh
-$kubectl delete -f manifest.yml --namespace titiler-dev
+$helm uninstall traefik-titiler -n traefik
+$kubectl delete -f ingress.yaml -n titiler-dev
+$kubectl delete -f manifest.yaml --namespace titiler-dev
 ```
 
 ## Check log
@@ -97,3 +118,10 @@ titiler-7899fd795-xnlbv   1/1     Running   0          27m
 $kubectl logs titiler-7899fd795-hcnzh
 $kubectl describe pods titiler-7899fd795-hcnzh
 ```
+
+## References
+
+I refered the following websites (Note. they are Japanese language)
+
+- https://qiita.com/eternity1984/items/ae6e5684fd7b02aa23e4#6-ingressroute-%E3%81%A7-whoami-%E3%82%92%E5%85%AC%E9%96%8B%E3%81%99%E3%82%8B
+- https://qiita.com/eternity1984/items/1f1dce3fcee3ae58d315#traefik-%E5%8D%98%E4%BD%93%E3%81%A7-lets-encrypt-%E3%82%92%E4%BD%BF%E3%81%88%E3%82%8B%E3%82%88%E3%81%86%E3%81%AB%E6%A7%8B%E6%88%90%E3%81%99%E3%82%8B
