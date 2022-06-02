@@ -59,12 +59,6 @@ $az role assignment create \
     --scope /subscriptions/1c766f37-8740-4764-932c-bf96cbb29a39/resourceGroups/undpdpbppssdganalyticsgeo
 ```
 
-## Deploy Titiler
-
-```zsh
-$kubectl apply -f manifest.yaml --namespace titiler-dev
-```
-
 ## setup traefik
 
 ```zsh
@@ -78,7 +72,7 @@ $helm inspect values traefik/traefik > traefik-values.yaml
 # update loadBalancerIP in traefik-values.yaml
 $helm install traefik-titiler traefik/traefik -f traefik-values.yaml -n traefik
 # if update existing traefic
-$helm upgrade traefik-titiler traefik/traefik -f traefik-values.yaml 
+$helm upgrade traefik-titiler traefik/traefik -f traefik-values.yaml -n traefik
 
 $kubectl get svc -n traefik
 NAME              TYPE           CLUSTER-IP   EXTERNAL-IP     PORT(S)                      AGE
@@ -90,7 +84,56 @@ NAME                               READY   STATUS    RESTARTS   AGE
 traefik-titiler-7c586945c8-t87cb   1/1     Running   0          26s
 $kubectl port-forward traefik-titiler-7c586945c8-t87cb 9000:9000 -n traefik
 # access http://localhost:9000/dashboard/ 
+```
 
+## Deploy Titiler
+
+```zsh
+$kubectl apply -f manifest.yaml --namespace titiler-dev
+```
+
+## setup cert-manager
+
+- https://cert-manager.io/docs/installation/helm/#steps
+- https://cert-manager.io/docs/configuration/acme/
+- https://www.andyroberts.nz/posts/aks-traefik-https/
+
+```zsh
+$kubectl create ns cert-manager
+
+$kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.8.0/cert-manager.yaml
+# $helm repo add jetstack https://charts.jetstack.io
+# $helm repo update
+# $kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.crds.yaml -n cert-manager
+# $helm install \
+#   cert-manager jetstack/cert-manager \
+#   --namespace cert-manager \
+#   --create-namespace \
+#   --version v1.8.0 \
+
+$kubectl get pods -n cert-manager
+$kubectl apply -f lets-encrypt.yaml -n titiler-dev
+$kubectl apply -f lets-encrypt-cert.yaml -n titiler-dev
+```
+
+- troubleshoot
+
+```zsh
+$kubectl get certificate
+$kubectl describe certificate
+$kubectl describe certificaterequest
+$kubectl describe clusterissuer titiler-cert
+$kubectl describe certificaterequest titiler.water-gis.com-ntm99
+$kubectl describe order titiler.water-gis.com-ntm99-4133340934
+$kubectl get challenges
+```
+
+- https://cert-manager.io/docs/faq/troubleshooting/#2-checking-the-certificaterequest
+- https://cert-manager.io/docs/faq/acme/#2-troubleshooting-orders
+
+## Install ingressroute
+
+```zsh
 $kubectl apply -f ingress.yaml -n titiler-dev
 ```
 
@@ -101,7 +144,11 @@ http://titiler.water-gis.com/cog/tiles/6/33/30?url=https://undpngddlsgeohubdev01
 ## Delete environment
 
 ```zsh
+$kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.crds.yaml -n cert-manager
+$helm uninstall cert-manager --namespace cert-manager
 $helm uninstall traefik-titiler -n traefik
+$kubectl delete -f lets-encrypt.yaml -n titiler-dev
+$kubectl delete -f lets-encrypt-cert.yaml -n titiler-dev
 $kubectl delete -f ingress.yaml -n titiler-dev
 $kubectl delete -f manifest.yaml --namespace titiler-dev
 ```
