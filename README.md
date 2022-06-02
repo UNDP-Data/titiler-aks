@@ -65,6 +65,29 @@ $az role assignment create \
 $kubectl apply -f manifest.yaml --namespace titiler-dev
 ```
 
+## setup cert-manager
+
+- https://cert-manager.io/docs/installation/helm/#steps
+- https://cert-manager.io/docs/configuration/acme/
+- https://www.andyroberts.nz/posts/aks-traefik-https/
+
+```zsh
+$kubectl create ns cert-manager
+
+$helm repo add jetstack https://charts.jetstack.io
+$helm repo update
+$kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.crds.yaml -n cert-manager
+$helm install \
+  cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --version v1.8.0 \
+
+$kubectl get pods -n cert-manager
+$kubectl apply -f lets-encrypt.yaml -n titiler-dev
+$kubectl apply -f lets-encrypt-cert.yaml -n titiler-dev
+```
+
 ## setup traefik
 
 ```zsh
@@ -78,7 +101,7 @@ $helm inspect values traefik/traefik > traefik-values.yaml
 # update loadBalancerIP in traefik-values.yaml
 $helm install traefik-titiler traefik/traefik -f traefik-values.yaml -n traefik
 # if update existing traefic
-$helm upgrade traefik-titiler traefik/traefik -f traefik-values.yaml 
+$helm upgrade traefik-titiler traefik/traefik -f traefik-values.yaml -n traefik
 
 $kubectl get svc -n traefik
 NAME              TYPE           CLUSTER-IP   EXTERNAL-IP     PORT(S)                      AGE
