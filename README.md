@@ -7,6 +7,7 @@ This repository manages deployment of [titiler](https://developmentseed.org/titi
 - Create `titiler-dev` namespace
 
 ```zsh
+# creater titiler-dev namespace
 $kubectl create namespace titiler-dev
 $kubectl get ns
 ```
@@ -21,7 +22,7 @@ CURRENT   NAME             CLUSTER          AUTHINFO                            
           undpdpicluster   undpdpicluster   victortile-dev-read-user                          victortile-dev
 #switch to GeoKube01 context
 $kubectl config use-context GeoKube01
-
+#set titiler-dev as default namespace
 $kubectl config set-context $(kubectl config current-context) --namespace=titiler-dev
 ```
 
@@ -30,13 +31,14 @@ $kubectl config set-context $(kubectl config current-context) --namespace=titile
 see [here](https://docs.microsoft.com/en-us/azure/aks/static-ip)
 
 ```zsh
+# create static public IP for titiler
 $az network public-ip create \
     --resource-group undpdpbppssdganalyticsgeo \
     --name titilerAKSPublicIP \
     --sku Standard \
     --allocation-method static
 $az network public-ip show --resource-group undpdpbppssdganalyticsgeo --name titilerAKSPublicIP --query ipAddress --output tsv
-
+# the below is static IP generated
 13.81.173.247
 ```
 
@@ -52,7 +54,7 @@ $az aks show -g undpdpbppssdganalyticsgeo -n GeoKube01 --query "identity"
   "userAssignedIdentities": null
 }
 
-# The below command need IT to execute
+# The below command need IT to execute (IT already granted GeoKube01 to access)
 $az role assignment create \
     --assignee 8edf0602-b9c0-4322-bf34-802e4f3add7d \
     --role "Network Contributor" \
@@ -64,29 +66,59 @@ $az role assignment create \
 ```zsh
 $kubectl create ns traefik
 
-$kubectl apply -f azuredns-config.yaml
-$kubectl create secret generic azuredns-config --from-env-file ./credentials.env -n traefik
-
 $helm repo add traefik https://helm.traefik.io/traefik
+# export default traefik setting to yaml
 $helm inspect values traefik/traefik > traefik-values.yaml
+```
+
+In order to use static public IP generated before, we need to configure following settings in `traefik-values.yaml`.
+
+```diff
+service:
+  enabled: true
+  type: LoadBalancer
+  # Additional annotations applied to both TCP and UDP services (e.g. for cloud provider specific config)
+-  # annotations: {}
++  annotations:
++    service.beta.kubernetes.io/azure-load-balancer-resource-group: undpdpbppssdganalyticsgeo
+  # Additional annotations for TCP service only
+  annotationsTCP: {}
+  # Additional annotations for UDP service only
+  annotationsUDP: {}
+  # Additional service labels (e.g. for filtering Service by custom labels)
+  labels: {}
+  # Additional entries here will be added to the service spec.
+  # Cannot contain type, selector or ports entries.
+-  # spec: {}
++  spec:
++    loadBalancerIP: "13.81.173.247"
+```
+
+
+```zsh
 # update loadBalancerIP in traefik-values.yaml
 $helm install traefik-titiler traefik/traefik -f traefik-values.yaml -n traefik
 # if update existing traefic
 $helm upgrade traefik-titiler traefik/traefik -f traefik-values.yaml -n traefik
 
+# check whether traefik service is working with allocated public IP
 $kubectl get svc -n traefik
 NAME              TYPE           CLUSTER-IP   EXTERNAL-IP     PORT(S)                      AGE
 traefik-titiler   LoadBalancer   10.0.44.36   13.81.173.247   80:31833/TCP,443:32683/TCP   16s
 
-# try to access traefik dashboards
+# check traefik pods are working.
 $kubectl get pods -n traefik
 NAME                               READY   STATUS    RESTARTS   AGE
 traefik-titiler-7c586945c8-t87cb   1/1     Running   0          26s
+
+# try to access traefik dashboards (change pod id)
 $kubectl port-forward traefik-titiler-7c586945c8-t87cb 9000:9000 -n traefik
 # access http://localhost:9000/dashboard/ 
 ```
 
 ## Deploy Titiler
+
+Now, deploy titiler.
 
 ```zsh
 $kubectl apply -f manifest.yaml --namespace titiler-dev
@@ -99,27 +131,32 @@ $kubectl apply -f manifest.yaml --namespace titiler-dev
 - https://www.andyroberts.nz/posts/aks-traefik-https/
 
 ```zsh
+# create namespace for cert-manager
 $kubectl create ns cert-manager
-
+# install cert-manager by kubectl
 $kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.8.0/cert-manager.yaml
-# $helm repo add jetstack https://charts.jetstack.io
-# $helm repo update
-# $kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.crds.yaml -n cert-manager
-# $helm install \
-#   cert-manager jetstack/cert-manager \
-#   --namespace cert-manager \
-#   --create-namespace \
-#   --version v1.8.0 \
-
+# check whether cert-manager is working well
 $kubectl get pods -n cert-manager
+NAME                                       READY   STATUS    RESTARTS   AGE
+cert-manager-b4d6fd99b-tvflk               1/1     Running   0          13m
+cert-manager-cainjector-74bfccdfdf-fn99h   1/1     Running   0          13m
+cert-manager-webhook-65b766b5f8-w62nj      1/1     Running   0          13m
+
+# install clusterissuer in titiler-dev
 $kubectl apply -f lets-encrypt.yaml -n titiler-dev
+# install certificate in titiler-dev
 $kubectl apply -f lets-encrypt-cert.yaml -n titiler-dev
 ```
 
 - troubleshoot
 
 ```zsh
+# check certificate status. READY should be true (currently there is problem not becoming true)
 $kubectl get certificate
+NAME                    READY   SECRET                      AGE
+titiler.water-gis.com   False   titiler.water-gis.com-tls   11m
+
+# for further information, try following commands.
 $kubectl describe certificate
 $kubectl describe certificaterequest
 $kubectl describe clusterissuer titiler-cert
@@ -128,29 +165,36 @@ $kubectl describe order titiler.water-gis.com-ntm99-4133340934
 $kubectl get challenges
 ```
 
+For trouble shooting, following cert-manager website can be helpful.
+
 - https://cert-manager.io/docs/faq/troubleshooting/#2-checking-the-certificaterequest
 - https://cert-manager.io/docs/faq/acme/#2-troubleshooting-orders
 
 ## Install ingressroute
 
+Once cert-manager settings are done, install ingress route.
+
 ```zsh
 $kubectl apply -f ingress.yaml -n titiler-dev
 ```
 
+Currently, getting certificate does not succeed, so traefik works with self certificate.
+
 - Test
 
-http://titiler.water-gis.com/cog/tiles/6/33/30?url=https://undpngddlsgeohubdev01.blob.core.windows.net/test/Nigeria_set_lightscore_sy_2020_riocog.tif?c3Y9MjAyMS0wNi0wOCZzZT0yMDIyLTA2LTAxVDExJTNBNTglM0ExN1omc3I9YiZzcD1yJnNpZz1hSlJ4eFFOTzhpaHUzWTdXNDc1MnY2UTdEN3R3V0Y2NUglMkI5ZGRBRW83ZTQlM0Q=
+https://titiler.water-gis.com/cog/tiles/6/33/30?url=https://undpngddlsgeohubdev01.blob.core.windows.net/test/Nigeria_set_lightscore_sy_2020_riocog.tif?c3Y9MjAyMS0wNi0wOCZzZT0yMDIyLTA2LTAxVDExJTNBNTglM0ExN1omc3I9YiZzcD1yJnNpZz1hSlJ4eFFOTzhpaHUzWTdXNDc1MnY2UTdEN3R3V0Y2NUglMkI5ZGRBRW83ZTQlM0Q=
 
 ## Delete environment
 
 ```zsh
-$kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.crds.yaml -n cert-manager
-$helm uninstall cert-manager --namespace cert-manager
-$helm uninstall traefik-titiler -n traefik
-$kubectl delete -f lets-encrypt.yaml -n titiler-dev
-$kubectl delete -f lets-encrypt-cert.yaml -n titiler-dev
-$kubectl delete -f ingress.yaml -n titiler-dev
 $kubectl delete -f manifest.yaml --namespace titiler-dev
+$kubectl delete -f ingress.yaml -n titiler-dev
+$kubectl delete -f lets-encrypt-cert.yaml -n titiler-dev
+$kubectl delete -f lets-encrypt.yaml -n titiler-dev
+$helm uninstall traefik-titiler -n traefik
+$kubectl delete -f https://github.com/jetstack/cert-manager/releases/download/v1.8.0/cert-manager.yaml
+$kubectl delete ns titiler-dev
+$kubectl delete ns cert-manager
 ```
 
 ## Check log
