@@ -1,0 +1,31 @@
+# Dockerfile for running titiler application with uvicorn server
+# Size ~600MB
+ARG PYTHON_VERSION=3.9
+
+FROM python:${PYTHON_VERSION}-slim
+
+RUN apt-get update && apt-get install curl -y
+  
+  # Ensure root certificates are always updated at evey container build
+  # and curl is using the latest version of them
+RUN mkdir /usr/local/share/ca-certificates/cacert.org
+RUN cd /usr/local/share/ca-certificates/cacert.org && curl -k -O https://www.cacert.org/certs/root.crt
+RUN cd /usr/local/share/ca-certificates/cacert.org && curl -k -O https://www.cacert.org/certs/class3.crt
+RUN update-ca-certificates
+ENV CURL_CA_BUNDLE /etc/ssl/certs/ca-certificates.crt
+
+RUN mkdir /opt/wmts
+WORKDIR /opt/wmts
+RUN python3 -m pip install -U pip
+RUN python3 -m pip install pipenv
+RUN pipenv --python ${PYTHON_VERSION}
+RUN pipenv run pip install -U pip  
+RUN pipenv run pip install uvicorn titiler --no-cache-dir --upgrade 
+COPY app/wmts.py /opt/wmts/
+
+
+
+
+ENV HOST 0.0.0.0
+ENV PORT 80
+CMD pipenv run uvicorn wmts:app --host ${HOST} --port ${PORT}
