@@ -80,15 +80,6 @@ def admin_parameters(admin_id_url: str = Query(..., description='the Azure hoste
 
 ccog = TilerFactory(path_dependency=DatasetPathParams)
 
-@ccog.router.get(
-    "/geojsonstats",
-    #response_model=BandStatistics,
-    response_model_exclude_none=True,
-    response_class=JSONResponse,
-    responses={
-        200: {"description": "Return dataset's band stats for 1-3 admin levels ."}},
-)
-
 @attr.s
 class MultiFilesBandsReader(MultiBandReader):
     """Multiple Files as Bands."""
@@ -134,6 +125,15 @@ def MultibandDatasetPathParams(url: List = Query(..., description="Dataset URL")
 multi_band = MultiBandTilerFactory(
     reader=MultiFilesBandsReader, 
     path_dependency=MultibandDatasetPathParams
+)
+
+@ccog.router.get(
+    "/geojsonstats",
+    #response_model=BandStatistics,
+    response_model_exclude_none=True,
+    response_class=JSONResponse,
+    responses={
+        200: {"description": "Return dataset's band stats for 1-3 admin levels ."}},
 )
 
 #def adminstats(src_path=Depends(ccog.path_dependency), admin_params: dict = Depends(admin_parameters)):
@@ -186,7 +186,8 @@ if not api_settings.disable_cog:
     app.include_router(ccog.router, prefix="/cog",
                        tags=["Cloud Optimized GeoTIFF"])
     
-    app.include_router(multi_band.router, prefix="/cogs")
+    app.include_router(multi_band.router, prefix="/cogs",
+                       tags=["Multibands Cloud Optimized GeoTIFF"])
 
 if not api_settings.disable_stac:
     app.include_router(
