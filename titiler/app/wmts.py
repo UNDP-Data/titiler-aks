@@ -186,7 +186,7 @@ if not api_settings.disable_cog:
     app.include_router(ccog.router, prefix="/cog",
                        tags=["Cloud Optimized GeoTIFF"])
     
-    # app.include_router(multi_band.router, prefix="/cogs")
+    app.include_router(multi_band.router, prefix="/cogs")
 
 if not api_settings.disable_stac:
     app.include_router(
