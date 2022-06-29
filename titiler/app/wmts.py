@@ -4,7 +4,7 @@ import rasterio
 from urllib.request import urlopen
 import json
 from rio_tiler.utils import get_array_statistics
-from titiler.core.factory import TilerFactory
+from titiler.core.factory import TilerFactory, MultiBandTilerFactory
 from titiler.application.routers import mosaic, stac, tms
 from titiler.application.settings import ApiSettings
 from titiler.application import __version__ as titiler_version
@@ -20,6 +20,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from rio_tiler.models import BandStatistics
 from titiler.core.resources.responses import JSONResponse
 from starlette.responses import HTMLResponse
+
+from typing import Any, Dict, List, Type
+
+import attr
+from morecantile import TileMatrixSet
+from rasterio.path import parse_path
+from rio_tiler.constants import WEB_MERCATOR_TMS
+from rio_tiler.errors import InvalidBandName
+from rio_tiler.io import BaseReader, COGReader, MultiBandReader
 
 logging.getLogger("botocore.credentials").disabled = True
 logging.getLogger("botocore.utils").disabled = True
@@ -71,6 +80,53 @@ def admin_parameters(admin_id_url: str = Query(..., description='the Azure hoste
 
 ccog = TilerFactory(path_dependency=DatasetPathParams)
 
+@attr.s
+class MultiFilesBandsReader(MultiBandReader):
+    """Multiple Files as Bands."""
+
+    input: List[str] = attr.ib()
+    tms: TileMatrixSet = attr.ib(default=WEB_MERCATOR_TMS)
+
+    reader_options: Dict = attr.ib(factory=dict)
+    reader: Type[BaseReader] = attr.ib(default=COGReader)
+
+    def __attrs_post_init__(self):
+        """Fetch Reference band to get the bounds."""
+
+        self.bands = [f"b{ix + 1}" for ix in range(len(self.input))]
+
+        # We assume the files are similar so we use the first one to 
+        # get the bounds/crs/min,maxzoom
+        # Note: you can skip that and hard code values
+        with self.reader(self.input[0], tms=self.tms, **self.reader_options) as cog:
+            self.bounds = cog.bounds
+            self.crs = cog.crs
+            self.minzoom = cog.minzoom
+            self.maxzoom = cog.maxzoom
+
+    def _get_band_url(self, band: str) -> str:
+        """Validate band's name and return band's url."""
+        if band not in self.bands:
+            raise InvalidBandName(f"{band} is not valid")
+
+        index = self.bands.index(band)
+        return self.input[index]
+
+# Forward list of urls to the reader (MultiFilesBandsReader)
+def MultibandDatasetPathParams(url: List = Query(..., description="Dataset URL")) -> List[str]:
+    decoded_urls = list()
+    for in_url in url:
+        furl, b64token = in_url.split('?')
+        decoded_token = base64.b64decode(b64token).decode()
+        decoded_url = f'/vsicurl/{furl}?{decoded_token}'
+        decoded_urls.append(decoded_url)
+    return decoded_urls
+
+multi_band = MultiBandTilerFactory(
+    reader=MultiFilesBandsReader, 
+    path_dependency=MultibandDatasetPathParams
+)
+
 @ccog.router.get(
     "/geojsonstats",
     #response_model=BandStatistics,
@@ -79,6 +135,7 @@ ccog = TilerFactory(path_dependency=DatasetPathParams)
     responses={
         200: {"description": "Return dataset's band stats for 1-3 admin levels ."}},
 )
+
 #def adminstats(src_path=Depends(ccog.path_dependency), admin_params: dict = Depends(admin_parameters)):
 def adminstats(
         src_path=Depends(ccog.path_dependency),
@@ -128,6 +185,9 @@ app = FastAPI(
 if not api_settings.disable_cog:
     app.include_router(ccog.router, prefix="/cog",
                        tags=["Cloud Optimized GeoTIFF"])
+    
+    app.include_router(multi_band.router, prefix="/cogs",
+                       tags=["Multibands Cloud Optimized GeoTIFF"])
 
 if not api_settings.disable_stac:
     app.include_router(
