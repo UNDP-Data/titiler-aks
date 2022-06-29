@@ -1,0 +1,3 @@
+azure-functions==1.11.1
+titiler.application
+
