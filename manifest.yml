@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: titiler
-          image: ghcr.io/undp-data/titiler:latest
+          image: ghcr.io/undp-data/titiler-aks:main
           resources:
             limits:
               memory: "2048Mi"
