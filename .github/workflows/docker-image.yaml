@@ -1,7 +1,7 @@
 name: Create and publish a Docker image
 on:
   push:
-    #branches: ['main']
+    branches: ['main']
     tags:
       - 'v*'
     workflow_dispatch:
@@ -36,7 +36,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
         with:
-          context: .
+          context: titiler
           file: titiler/dockerfiles/Dockerfile.uvicorn
           push: true
           tags: ${{ steps.meta.outputs.tags }}
