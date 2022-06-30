@@ -10,7 +10,7 @@ Run `delete.sh` to cleanup the Kubernetes environment.
 
 ## Update titiler Docker image to AKS
 
-Docker image will be deployed to Github Package by [docker-image.yaml](.github/workflows/docker-image.yaml)
+Docker image will be deployed to Github Package by [docker-image.yaml](.github/workflows/docker-image.yaml) when tag version `vX.X.X` is created.
 
 Update tag version of `titiler-ask` in `manifest.yml`, then execute the following commands to apply.
 
