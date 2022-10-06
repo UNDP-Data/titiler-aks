@@ -153,7 +153,10 @@ def create_mosaicJSON(
         attribution :Optional[str] = None
 
     ):
-    return MosaicJSON.from_urls(urls=url, minzoom=minzoom, maxzoom=maxzoom, attribution=attribution)
+    mosaicjson = MosaicJSON.from_urls(urls=url, minzoom=minzoom, maxzoom=maxzoom, )
+    if not attribution is None:
+        mosaicjson.attribution = attribution
+    return mosaicjson
 
 
 @ccog.router.get(
