@@ -154,7 +154,7 @@ def create_mosaicJSON(
 
     ):
     mosaicjson = MosaicJSON.from_urls(urls=url, minzoom=minzoom, maxzoom=maxzoom, )
-    if not attribution is None:
+    if attribution is not None:
         mosaicjson.attribution = attribution
     return mosaicjson
 
