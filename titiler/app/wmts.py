@@ -148,9 +148,9 @@ multi_band = MultiBandTilerFactory(
 
 def create_mosaicJSON(
         url=Depends(MultibandDatasetPathParams),
-        minzoom :int=Optional[int],
-        maxzoom :int=Optional[int],
-        attribution :str = Optional[str]
+        minzoom :Optional[int]=0,
+        maxzoom :Optional[int]= 22,
+        attribution :Optional[str] = None
 
     ):
     return MosaicJSON.from_urls(urls=url, minzoom=minzoom, maxzoom=maxzoom, attribution=attribution)
