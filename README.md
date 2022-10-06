@@ -25,3 +25,19 @@ When you applied `manifest.yml`, replacement of pods might fail because of insuf
 ## References
 
 - https://medium.com/geekculture/traefik-ingress-on-azure-kubernetes-service-fa498ba7e4b4
+
+## Develop
+
+```commandline
+pipenv install
+pipenv shell
+(titiler-aks) cd titiler/app
+(titiler-aks) pipenv run dev
+```
+
+or
+
+```commandline
+cd titiler/dockerfiles
+docker-compose up
+```
