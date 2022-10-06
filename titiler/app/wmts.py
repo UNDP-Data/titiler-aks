@@ -9,6 +9,7 @@ from titiler.application.routers import mosaic, stac, tms
 from titiler.application.settings import ApiSettings
 from titiler.application import __version__ as titiler_version
 from titiler.core.errors import DEFAULT_STATUS_CODES, add_exception_handlers
+from cogeo_mosaic.mosaic import MosaicJSON
 # from titiler.core.middleware import (LoggerMiddleware,
 #                                      LowerCaseQueryStringMiddleware,
 #                                      TotalTimeMiddleware)
@@ -21,7 +22,7 @@ from rio_tiler.models import BandStatistics
 from titiler.core.resources.responses import JSONResponse
 from starlette.responses import HTMLResponse
 
-from typing import Any, Dict, List, Type
+from typing import Any, Dict, List, Type, Optional
 
 import attr
 from morecantile import TileMatrixSet
@@ -35,6 +36,8 @@ logging.getLogger("botocore.utils").disabled = True
 logging.getLogger("rio-tiler").setLevel(logging.ERROR)
 
 api_settings = ApiSettings()
+
+
 
 def fetch_admin_geojson(url: str = None) -> dict:
     with urlopen(url) as response:
@@ -116,9 +119,16 @@ class MultiFilesBandsReader(MultiBandReader):
 def MultibandDatasetPathParams(url: List = Query(..., description="Dataset URL")) -> List[str]:
     decoded_urls = list()
     for in_url in url:
-        furl, b64token = in_url.split('?')
-        decoded_token = base64.b64decode(b64token).decode()
-        decoded_url = f'/vsicurl/{furl}?{decoded_token}'
+        if '?' in in_url:
+            furl, b64token = in_url.split('?')
+            try:
+                decoded_token = base64.b64decode(b64token).decode()
+            except Exception:
+                decoded_token = b64token
+            decoded_url = f'/vsicurl/{furl}?{decoded_token}'
+        else:
+            decoded_url = f'/vsicurl/{in_url}'
+
         decoded_urls.append(decoded_url)
     return decoded_urls
 
@@ -126,6 +136,22 @@ multi_band = MultiBandTilerFactory(
     reader=MultiFilesBandsReader, 
     path_dependency=MultibandDatasetPathParams
 )
+
+@mosaic.router.get(
+    "/create",
+    response_model=MosaicJSON,
+    response_model_exclude_none=True,
+    response_class=JSONResponse,
+    responses={
+        200: {"description": "Return a MosaicJSON from multiple COGs."}},
+)
+
+def create_mosaicJSON(
+        url=Depends(MultibandDatasetPathParams),
+        minzoom :int=Optional[int]
+    ):
+    return MosaicJSON.from_urls(urls=url)
+
 
 @ccog.router.get(
     "/geojsonstats",
