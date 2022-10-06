@@ -4,6 +4,7 @@ services:
   titiler-uvicorn:
     # See https://github.com/developmentseed/titiler/discussions/387
     #platform: linux/amd64
+#    image: ghcr.io/undp-data/titiler-aks:v0.0.2
     build:
       context: .
       dockerfile: dockerfiles/Dockerfile.uvicorn
