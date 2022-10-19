@@ -156,7 +156,7 @@ class MosaicJsonCreateItem(BaseModel):
 def create_mosaicJSON_post(payload : MosaicJsonCreateItem):
     url = MultibandDatasetPathParams(payload.url)
     minzoom = payload.minzoom
-    maxzoom = payload.minzoom
+    maxzoom = payload.maxzoom
     attribution = payload.attribution
 
     mosaicjson = MosaicJSON.from_urls(urls=url, minzoom=minzoom, maxzoom=maxzoom, )
