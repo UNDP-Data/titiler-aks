@@ -22,7 +22,8 @@ from rio_tiler.models import BandStatistics
 from titiler.core.resources.responses import JSONResponse
 from starlette.responses import HTMLResponse
 
-from typing import Any, Dict, List, Type, Optional
+from typing import Any, Dict, List, Type, Optional, Union
+from pydantic import BaseModel
 
 import attr
 from morecantile import TileMatrixSet
@@ -137,6 +138,32 @@ multi_band = MultiBandTilerFactory(
     path_dependency=MultibandDatasetPathParams
 )
 
+class MosaicJsonCreateItem(BaseModel):
+    url: List[str] = Query(..., description="Dataset URL")
+    minzoom: int = 0
+    maxzoom: int = 22
+    attribution:str = None
+
+@mosaic.router.post(
+    "/create",
+    response_model=MosaicJSON,
+    response_model_exclude_none=True,
+    response_class=JSONResponse,
+    responses={
+        200: {"description": "Return a MosaicJSON from multiple COGs."}},
+)
+
+def create_mosaicJSON_post(payload : MosaicJsonCreateItem):
+    url = MultibandDatasetPathParams(payload.url)
+    minzoom = payload.minzoom
+    maxzoom = payload.minzoom
+    attribution = payload.attribution
+
+    mosaicjson = MosaicJSON.from_urls(urls=url, minzoom=minzoom, maxzoom=maxzoom, )
+    if attribution is not None:
+        mosaicjson.attribution = attribution
+    return mosaicjson
+
 @mosaic.router.get(
     "/create",
     response_model=MosaicJSON,
@@ -146,7 +173,7 @@ multi_band = MultiBandTilerFactory(
         200: {"description": "Return a MosaicJSON from multiple COGs."}},
 )
 
-def create_mosaicJSON(
+def create_mosaicJSON_get(
         url=Depends(MultibandDatasetPathParams),
         minzoom :Optional[int]=0,
         maxzoom :Optional[int]= 22,
