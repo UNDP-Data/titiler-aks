@@ -1,10 +1,10 @@
 name: Create and publish a Docker image
 on:
   push:
-    # branches: ['main']
+    branches: ['main']
     tags:
       - 'v*'
-    workflow_dispatch:
+    pull_request:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -32,6 +32,7 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
