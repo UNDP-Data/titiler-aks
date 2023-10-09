@@ -10,9 +10,6 @@ from titiler.application.settings import ApiSettings
 from titiler.application import __version__ as titiler_version
 from titiler.core.errors import DEFAULT_STATUS_CODES, add_exception_handlers
 from cogeo_mosaic.mosaic import MosaicJSON
-# from titiler.core.middleware import (LoggerMiddleware,
-#                                      LowerCaseQueryStringMiddleware,
-#                                      TotalTimeMiddleware)
 from titiler.application.custom import templates
 from titiler.mosaic.errors import MOSAIC_STATUS_CODES
 from geojson_pydantic.features import Feature, FeatureCollection
@@ -27,7 +24,6 @@ from pydantic import BaseModel
 
 import attr
 from morecantile import TileMatrixSet
-from rasterio.path import parse_path
 from rio_tiler.constants import WEB_MERCATOR_TMS
 from rio_tiler.errors import InvalidBandName
 from rio_tiler.io import BaseReader, COGReader, MultiBandReader

@@ -1,7 +1,7 @@
 # Dockerfile for running titiler application with uvicorn server
 # Size ~600MB
 ARG PYTHON_VERSION=3.9
-
+ARG TITILER_VERSION=0.7.1
 FROM python:${PYTHON_VERSION}-slim
 
 RUN apt-get update && apt-get install curl -y
@@ -19,8 +19,10 @@ WORKDIR /opt/wmts
 RUN python3 -m pip install -U pip
 RUN python3 -m pip install pipenv
 RUN pipenv --python ${PYTHON_VERSION}
-RUN pipenv run pip install -U pip  
-RUN pipenv run pip install uvicorn titiler --no-cache-dir --upgrade 
+RUN pipenv run pip install -U pip
+#RUN pipenv run pip install uvicorn #asyncpg postgis --no-cache-dir  --upgrade
+COPY requirements.txt /opt/wmts/
+RUN pipenv run pip install -r requirements.txt
 COPY app/wmts.py /opt/wmts/
 
 
